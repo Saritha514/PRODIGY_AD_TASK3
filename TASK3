@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Stopwatch ✓</title>
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.8/css/line.css">
+    <style>
+        :root {
+            --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --accent: #e74c3c;
+            --success: #27ae60;
+            --border: #ecf0f1;
+            --shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        [data-theme="dark"] {
+            --card-bg: #2c3e50;
+            --text-primary: #ecf0f1;
+            --text-secondary: #bdc3c7;
+            --border: #34495e;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            min-height: 100vh; background: var(--bg-primary); padding: 20px; 
+        }
+        .app-container { max-width: 500px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; color: white; }
+        .header h1 { font-size: 2.8rem; font-weight: 800; margin-bottom: 8px; }
+        .theme-toggle { 
+            position: absolute; top: 20px; right: 20px; 
+            background: rgba(255,255,255,0.2); color: white; border: none; 
+            border-radius: 50%; width: 50px; height: 50px; cursor: pointer; 
+            backdrop-filter: blur(10px); transition: all 0.3s;
+        }
+        .theme-toggle:hover { transform: scale(1.1); }
+        .card { 
+            background: var(--card-bg); border-radius: 24px; padding: 40px; 
+            box-shadow: var(--shadow); 
+        }
+        .time-display { 
+            text-align: center; margin-bottom: 40px; 
+            font-family: 'Courier New', monospace;
+        }
+        .time { 
+            font-size: 4.5rem; font-weight: 300; color: var(--text-primary);
+            margin-bottom: 12px; letter-spacing: -2px;
+        }
+        .status { color: var(--text-secondary); font-size: 1.1rem; }
+        .controls { 
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; 
+            margin-bottom: 32px; 
+        }
+        .btn { 
+            padding: 18px 24px; border: none; border-radius: 16px; 
+            font-size: 16px; font-weight: 600; cursor: pointer; 
+            transition: all 0.3s ease; text-transform: uppercase;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .start { background: var(--success); color: white; }
+        .start:hover:not(:disabled) { background: #219a52; transform: scale(1.05); }
+        .pause { background: var(--accent); color: white; }
+        .pause:hover:not(:disabled) { background: #c0392b; transform: scale(1.05); }
+        .reset { background: transparent; color: var(--text-primary); border: 2px solid var(--border); }
+        .reset:hover:not(:disabled) { background: var(--accent); color: white; border-color: var(--accent); }
+        .lap-btn { 
+            position: fixed; bottom: 30px; right: 30px; width: 64px; height: 64px;
+            background: var(--accent); color: white; border: none; border-radius: 50%;
+            font-size: 24px; cursor: pointer; box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+        }
+        .lap-btn:hover:not(:disabled) { transform: scale(1.1); background: #c0392b; }
+        .lap-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .laps { 
+            max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.05); 
+            border-radius: 12px; padding: 0;
+        }
+        .laps::-webkit-scrollbar { width: 6px; }
+        .laps::-webkit-scrollbar-thumb { background: var(--text-secondary); border-radius: 10px; }
+        .lap-item { 
+            display: flex; justify-content: space-between; padding: 16px 20px;
+            border-bottom: 1px solid var(--border); font-family: 'Courier New', monospace;
+        }
+        .lap-item:last-child { border-bottom: none; }
+        .lap-num { font-weight: 600; color: var(--text-primary); min-width: 60px; }
+        .lap-total { color: var(--accent); font-weight: 600; }
+        .lap-interval { color: var(--text-secondary); }
+        .empty-laps { text-align: center; color: var(--text-secondary); padding: 40px; }
+        @media (max-width: 600px) { 
+            body { padding: 10px; } .card { padding: 32px; } 
+            .time { font-size: 3.5rem; } .controls { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">
+        <i class="uil uil-moon"></i>
+    </button>
+    
+    <div class="app-container">
+        <div class="header">
+            <h1>⏱️ Pro Stopwatch</h1>
+        </div>
+        <div class="card">
+            <div class="time-display">
+                <div class="time" id="timeDisplay">00:00:00.00</div>
+                <div class="status" id="statusDisplay">Ready</div>
+            </div>
+            <div class="controls">
+                <button class="btn start" id="startBtn" onclick="handleStart()">
+                    <i class="uil uil-play"></i> Start
+                </button>
+                <button class="btn pause" id="pauseBtn" onclick="handlePause()" disabled>
+                    <i class="uil uil-pause"></i> Pause
+                </button>
+                <button class="btn reset" id="resetBtn" onclick="resetStopwatch()">
+                    <i class="uil uil-refresh"></i> Reset
+                </button>
+            </div>
+            <ul class="laps" id="lapsList">
+                <li class="empty-laps">
+                    <i class="uil uil-stopwatch" style="font-size: 48px; opacity: 0.3; display: block; margin-bottom: 12px;"></i>
+                    Press LAP when running
+                </li>
+            </ul>
+        </div>
+    </div>
+    
+    <button class="lap-btn" id="lapBtn" onclick="recordLap()" disabled title="Lap (L key)">
+        <i class="uil uil-layers"></i>
+    </button>
+
+    <script>
+        let startTime = 0;
+        let lastLapTime = 0;
+        let elapsedTime = 0;
+        let interval = null;
+        let isRunning = false;
+        let laps = [];
+
+        const timeDisplay = document.getElementById('timeDisplay');
+        const statusDisplay = document.getElementById('statusDisplay');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const lapBtn = document.getElementById('lapBtn');
+        const lapsList = document.getElementById('lapsList');
+
+        function formatTime(ms) {
+            const hours = Math.floor(ms / 3600000);
+            const minutes = Math.floor((ms % 3600000) / 60000);
+            const seconds = Math.floor((ms % 60000) / 1000);
+            const milliseconds = Math.floor((ms % 1000) / 10);
+            return `${hours.toString().padStart(2, '0')}:${
+                minutes.toString().padStart(2, '0')}:${
+                seconds.toString().padStart(2, '0')}.${
+                milliseconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateDisplay() {
+            const currentTime = Date.now();
+            const totalElapsed = elapsedTime + (isRunning ? currentTime - startTime : 0);
+            timeDisplay.textContent = formatTime(totalElapsed);
+        }
+
+        function handleStart() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            startTime = Date.now() - elapsedTime;
+            interval = setInterval(updateDisplay, 10);
+            
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            lapBtn.disabled = false;
+            statusDisplay.textContent = 'Running';
+            startBtn.innerHTML = '<i class="uil uil-pause"></i> Running';
+        }
+
+        function handlePause() {
+            if (!isRunning) return;
+            
+            isRunning = false;
+            elapsedTime = Date.now() - startTime;
+            clearInterval(interval);
+            
+            pauseBtn.disabled = true;
+            startBtn.disabled = false;
+            startBtn.innerHTML = '<i class="uil uil-play"></i> Resume';
+            statusDisplay.textContent = 'Paused';
+        }
+
+        function resetStopwatch() {
+            isRunning = false;
+            clearInterval(interval);
+            elapsedTime = 0;
+            startTime = 0;
+            lastLapTime = 0;
+            laps = [];
+            
+            timeDisplay.textContent = '00:00:00.00';
+            statusDisplay.textContent = 'Ready';
+            
+            startBtn.disabled = false;
+            startBtn.innerHTML = '<i class="uil uil-play"></i> Start';
+            pauseBtn.disabled = true;
+            lapBtn.disabled = true;
+            
+            lapsList.innerHTML = `
+                <li class="empty-laps">
+                    <i class="uil uil-stopwatch" style="font-size: 48px; opacity: 0.3; display: block; margin-bottom: 12px;"></i>
+                    Press LAP when running
+                </li>
+            `;
+        }
+
+        function recordLap() {
+            if (!isRunning) return;
+            
+            const currentTime = Date.now();
+            const totalElapsed = elapsedTime + (currentTime - startTime);
+            const lapInterval = totalElapsed - lastLapTime;
+            
+            laps.unshift({
+                number: laps.length + 1,
+                total: formatTime(totalElapsed),
+                interval: formatTime(lapInterval)
+            });
+            
+            lastLapTime = totalElapsed;
+            
+            // Update laps display
+            lapsList.innerHTML = laps.map(lap => `
+                <li class="lap-item">
+                    <span class="lap-num">Lap ${lap.number}</span>
+                    <span class="lap-total">${lap.total}</span>
+                    <span class="lap-interval">${lap.interval}</span>
+                </li>
+            `).join('') || `
+                <li class="empty-laps">
+                    <i class="uil uil-stopwatch" style="font-size: 48px; opacity: 0.3; display: block; margin-bottom: 12px;"></i>
+                    Press LAP when running
+                </li>
+            `;
+        }
+
+        function toggleTheme() {
+            document.body.dataset.theme = document.body.dataset.theme === 'dark' ? '' : 'dark';
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !e.ctrlKey) {
+                e.preventDefault();
+                isRunning ? handlePause() : handleStart();
+            }
+            if (e.code === 'KeyL' && !lapBtn.disabled) {
+                recordLap();
+            }
+            if (e.code === 'KeyR') {
+                resetStopwatch();
+            }
+        });
+
+        updateDisplay(); // Initial display
+    </script>
+</body>
+</html>
